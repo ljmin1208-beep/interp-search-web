@@ -90,11 +90,8 @@ function App() {
     setFileName(file.name);
 
     const data = await file.arrayBuffer();
-
     const workbook = XLSX.read(data);
-
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
     const rows: any[] = XLSX.utils.sheet_to_json(sheet);
 
     const parsedTerms: Term[] = rows
@@ -116,16 +113,16 @@ function App() {
   };
 
   const handleFileUpload = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
-  const file = e.target.files?.[0];
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
 
-  if (!file) return;
+    if (!file) return;
 
-  await processFile(file);
+    await processFile(file);
 
-  e.target.value = "";
-};
+    e.target.value = "";
+  };
 
   const clearGlossary = () => {
     localStorage.removeItem("terms");
@@ -221,7 +218,7 @@ function App() {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "flex-start",
             gap: "16px",
             marginBottom: "16px",
           }}
@@ -237,20 +234,38 @@ function App() {
           </h1>
 
           {terms.length > 0 && (
-            <button
-              onClick={clearGlossary}
+            <div
               style={{
-                padding: "8px 12px",
-                background: "#171717",
-                border: "1px solid #333",
-                borderRadius: "8px",
-                color: "#aaa",
-                cursor: "pointer",
-                fontSize: "13px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                gap: "4px",
               }}
             >
-              Clear
-            </button>
+              <button
+                onClick={clearGlossary}
+                style={{
+                  padding: "8px 12px",
+                  background: "#171717",
+                  border: "1px solid #333",
+                  borderRadius: "8px",
+                  color: "#aaa",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                }}
+              >
+                Clear
+              </button>
+
+              <div
+                style={{
+                  color: "#666",
+                  fontSize: "12px",
+                }}
+              >
+                {terms.length.toLocaleString()} terms
+              </div>
+            </div>
           )}
         </div>
 
@@ -297,9 +312,7 @@ function App() {
             fontSize: "13px",
           }}
         >
-          {fileName
-            ? `Glossary loaded ✓ (${terms.length} terms)`
-            : "No glossary loaded"}
+          {fileName ? "Glossary loaded ✓" : "No glossary loaded"}
         </div>
 
         <input

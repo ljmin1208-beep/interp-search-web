@@ -9,11 +9,13 @@ type Term = {
 
 function App() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [terms, setTerms] = useState<Term[]>([]);
   const [filteredResults, setFilteredResults] = useState<Term[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,7 +31,15 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const trimmedQuery = query.trim().toLowerCase();
+    const timeout = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  useEffect(() => {
+    const trimmedQuery = debouncedQuery.trim().toLowerCase();
 
     if (trimmedQuery === "") {
       setFilteredResults(terms.slice(0, 20));
@@ -38,10 +48,11 @@ function App() {
     }
 
     const ranked = [...terms]
-      .filter((item) =>
-        item.en.toLowerCase().includes(trimmedQuery) ||
-        item.kr.toLowerCase().includes(trimmedQuery) ||
-        item.comment.toLowerCase().includes(trimmedQuery)
+      .filter(
+        (item) =>
+          item.en.toLowerCase().includes(trimmedQuery) ||
+          item.kr.toLowerCase().includes(trimmedQuery) ||
+          item.comment.toLowerCase().includes(trimmedQuery),
       )
       .sort((a, b) => {
         const getRank = (item: Term) => {
@@ -73,7 +84,7 @@ function App() {
 
     setFilteredResults(ranked.slice(0, 20));
     setSelectedIndex(0);
-  }, [query, terms]);
+  }, [debouncedQuery, terms]);
 
   const processFile = async (file: File) => {
     setFileName(file.name);
@@ -124,7 +135,7 @@ function App() {
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) =>
-          Math.min(prev + 1, filteredResults.length - 1)
+          Math.min(prev + 1, filteredResults.length - 1),
         );
       }
 
@@ -138,7 +149,15 @@ function App() {
         const selected = filteredResults[selectedIndex];
 
         if (selected) {
-          await navigator.clipboard.writeText(`${selected.en} → ${selected.kr}`);
+          await navigator.clipboard.writeText(
+            `${selected.en} → ${selected.kr}`,
+          );
+
+          setCopied(true);
+
+          setTimeout(() => {
+            setCopied(false);
+          }, 800);
         }
       }
 
@@ -153,238 +172,251 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [filteredResults, selectedIndex]);
 
- return (
-  <div
-    onDragOver={(e) => {
-      e.preventDefault();
-      setIsDragging(true);
-    }}
-    onDragLeave={() => setIsDragging(false)}
-    onDrop={async (e) => {
-      e.preventDefault();
-      setIsDragging(false);
-
-      const file = e.dataTransfer.files?.[0];
-      if (!file) return;
-
-      await processFile(file);
-    }}
-    style={{
-      minHeight: "100vh",
-      background: isDragging ? "#111827" : "#0a0a0a",
-      color: "white",
-      padding: "40px",
-      fontFamily: "sans-serif",
-      border: isDragging ? "2px dashed #3b82f6" : "2px solid transparent",
-      transition: "background 0.15s ease, border 0.15s ease",
-    }}
-  >
+  return (
     <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragging(true);
+      }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={async (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
+
+        await processFile(file);
+      }}
       style={{
-        maxWidth: "900px",
-        margin: "0 auto",
+        minHeight: "100vh",
+        background: isDragging ? "#111827" : "#0a0a0a",
+        color: "white",
+        padding: "40px",
+        fontFamily: "sans-serif",
+        border: isDragging ? "2px dashed #3b82f6" : "2px solid transparent",
+        transition: "background 0.15s ease, border 0.15s ease",
       }}
     >
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: "16px",
-          marginBottom: "8px",
+          maxWidth: "900px",
+          margin: "0 auto",
         }}
       >
-        <h1
-          style={{
-            fontSize: "22px",
-            fontWeight: "bold",
-            margin: 0,
-          }}
-        >
-          Terminology Search
-        </h1>
-
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            gap: "4px",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "16px",
+            marginBottom: "8px",
           }}
         >
-          <div
+          <h1
             style={{
-              color: fileName ? "#60a5fa" : "#777",
-              fontSize: "13px",
+              fontSize: "20px",
+              fontWeight: "bold",
+              margin: 0,
             }}
           >
-            {fileName
-              ? "Glossary loaded ✓"
-              : "No glossary loaded"}
-          </div>
+            terminology search
+          </h1>
 
-          {terms.length > 0 && (
-            <>
-              <button
-                onClick={clearGlossary}
-                style={{
-                  marginTop: "4px",
-                  padding: "8px 12px",
-                  background: "#171717",
-                  border: "1px solid #333",
-                  borderRadius: "8px",
-                  color: "#aaa",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                }}
-              >
-                Clear
-              </button>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: "4px",
+            }}
+          >
+            <div
+              style={{
+                color: fileName ? "#60a5fa" : "#777",
+                fontSize: "13px",
+              }}
+            >
+              {fileName ? "glossary loaded ✓" : "no glossary loaded"}
+            </div>
 
+            {terms.length > 0 && (
               <div
                 style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
                   color: "#666",
                   fontSize: "12px",
                 }}
               >
-                {terms.length.toLocaleString()} terms
+                <span>{terms.length.toLocaleString()} terms</span>
+
+                <span>·</span>
+
+                <button
+                  onClick={clearGlossary}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#888",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    padding: 0,
+                  }}
+                >
+                  clear
+                </button>
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          marginBottom: "6px",
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            display: "inline-block",
-            padding: "10px 16px",
-            background: "#171717",
-            border: "1px solid #333",
-            borderRadius: "10px",
-            cursor: "pointer",
-            fontSize: "14px",
-            color: "white",
-          }}
-        >
-          Upload Glossary
-        </button>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.csv"
-          onChange={handleFileUpload}
-          style={{ display: "none" }}
-        />
 
         <div
           style={{
-            color: isDragging ? "#60a5fa" : "#666",
-            fontSize: "13px",
+            marginTop: "12px",
+            marginBottom: "14px",
+            padding: "12px",
+            background: "#111111",
+            border: "1px solid #262626",
+            borderRadius: "14px",
           }}
         >
-          Upload or drag & drop an Excel/CSV glossary.
-        </div>
-      </div>
-
-      <input
-        ref={inputRef}
-        autoFocus
-        type="text"
-        placeholder="Search terminology..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        style={{
-          width: "100%",
-          marginTop: "12px",
-          padding: "14px",
-          fontSize: "16px",
-          borderRadius: "12px",
-          border: "1px solid #333",
-          background: "#171717",
-          color: "white",
-          outline: "none",
-        }}
-      />
-
-      <div style={{ marginTop: "24px" }}>
-        {filteredResults.map((item, index) => {
-          const isSelected = index === selectedIndex;
-
-          return (
-            <div
-              key={index}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
               style={{
-                padding: "18px",
-                marginBottom: "12px",
-                borderRadius: "12px",
-                background: isSelected ? "#262626" : "#171717",
-                border: isSelected
-                  ? "1px solid #3b82f6"
-                  : "1px solid #333",
+                display: "inline-block",
+                padding: "10px 16px",
+                background: "#171717",
+                border: "1px solid #333",
+                borderRadius: "10px",
+                cursor: "pointer",
+                fontSize: "14px",
+                color: "white",
               }}
             >
-              <div
-                style={{
-                  fontSize: "20px",
-                  fontWeight: 600,
-                }}
-              >
-                {item.en}
-              </div>
+              upload glossary
+            </button>
 
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "20px",
-                  color: "#60a5fa",
-                }}
-              >
-                {item.kr}
-              </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.csv"
+              onChange={handleFileUpload}
+              style={{ display: "none" }}
+            />
 
-              <div
-                style={{
-                  marginTop: "10px",
-                  color: "#888",
-                  fontSize: "14px",
-                }}
-              >
-                {item.comment}
-              </div>
+            <div
+              style={{
+                color: isDragging ? "#60a5fa" : "#666",
+                fontSize: "13px",
+              }}
+            >
+              drag & drop or upload an excel/csv glossary
             </div>
-          );
-        })}
-      </div>
           </div>
 
-      <img
-        src="/favicon.png"
-        alt="logo"
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          right: "20px",
-          width: "40px",
-          height: "40px",
-          opacity: 0.22,
-          pointerEvents: "none",
-          userSelect: "none",
-        }}
-      />
+          <input
+            ref={inputRef}
+            autoFocus
+            type="text"
+            placeholder="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: "12px",
+              padding: "14px",
+              fontSize: "16px",
+              borderRadius: "12px",
+              border: "1px solid #333",
+              background: "#171717",
+              color: "white",
+              outline: "none",
+            }}
+          />
+          <div
+            style={{
+              marginTop: "10px",
+              color: "#555",
+              fontSize: "12px",
+              textAlign: "right",
+            }}
+          >
+            {copied ? "copied ✓" : "↑↓ navigate · enter copy · esc clear"}
+          </div>
+        </div>
+
+        <div style={{ marginTop: "18px" }}>
+          {filteredResults.map((item, index) => {
+            const isSelected = index === selectedIndex;
+
+            return (
+              <div
+                key={index}
+                style={{
+                  padding: "14px 16px",
+                  marginBottom: "10px",
+                  borderRadius: "12px",
+                  background: isSelected ? "#202020" : "#151515",
+                  border: isSelected
+                    ? "1px solid #60a5fa"
+                    : "1px solid #2a2a2a",
+                  boxShadow: isSelected
+                    ? "0 0 0 1px rgba(96, 165, 250, 0.12)"
+                    : "none",
+                  transition: "all 0.12s ease",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "17px",
+                    fontWeight: 600,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {item.en}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "6px",
+                    fontSize: "16px",
+                    fontWeight: 500,
+                    color: "#60a5fa",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {item.kr}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "8px",
+                    color: "#777",
+                    fontSize: "13px",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {item.comment}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
-);
+  );
 }
 
 export default App;

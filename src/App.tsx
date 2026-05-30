@@ -44,20 +44,32 @@ function App() {
         );
       })
       .sort((a, b) => {
-        const aEnStarts = a.en.toLowerCase().startsWith(trimmedQuery);
-        const bEnStarts = b.en.toLowerCase().startsWith(trimmedQuery);
+  const getRank = (item: Term) => {
+    const en = item.en.toLowerCase();
+    const kr = item.kr.toLowerCase();
+    const comment = item.comment.toLowerCase();
+    const q = trimmedQuery.toLowerCase();
 
-        if (aEnStarts && !bEnStarts) return -1;
-        if (!aEnStarts && bEnStarts) return 1;
+    const abbreviationPattern = new RegExp(`\\(${q}\\)`, "i");
 
-        const aKrStarts = a.kr.toLowerCase().startsWith(trimmedQuery);
-        const bKrStarts = b.kr.toLowerCase().startsWith(trimmedQuery);
+    if (abbreviationPattern.test(item.en)) return 1;
+    if (en === q) return 2;
+    if (en.startsWith(q)) return 3;
+    if (kr.startsWith(q)) return 4;
+    if (en.includes(q)) return 5;
+    if (kr.includes(q)) return 6;
+    if (comment.includes(q)) return 7;
 
-        if (aKrStarts && !bKrStarts) return -1;
-        if (!aKrStarts && bKrStarts) return 1;
+    return 8;
+  };
 
-        return a.en.localeCompare(b.en);
-      });
+  const rankA = getRank(a);
+  const rankB = getRank(b);
+
+  if (rankA !== rankB) return rankA - rankB;
+
+  return a.en.localeCompare(b.en);
+})
 
     setFilteredResults(ranked.slice(0, 20));
     setSelectedIndex(0);

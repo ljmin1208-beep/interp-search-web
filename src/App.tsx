@@ -12,8 +12,11 @@ function App() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [terms, setTerms] = useState<Term[]>([]);
   const [filteredResults, setFilteredResults] = useState<Term[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [fileName, setFileName] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("terms");
@@ -22,7 +25,8 @@ function App() {
       const parsed = JSON.parse(saved);
 
       setTerms(parsed);
-      setFilteredResults(parsed);
+      setFilteredResults(parsed.slice(0, 20));
+      setFileName("saved glossary");
     }
   }, []);
 
@@ -44,43 +48,46 @@ function App() {
         );
       })
       .sort((a, b) => {
-  const getRank = (item: Term) => {
-    const en = item.en.toLowerCase();
-    const kr = item.kr.toLowerCase();
-    const comment = item.comment.toLowerCase();
-    const q = trimmedQuery.toLowerCase();
+        const getRank = (item: Term) => {
+          const en = item.en.toLowerCase();
+          const kr = item.kr.toLowerCase();
+          const comment = item.comment.toLowerCase();
+          const q = trimmedQuery;
 
-    const abbreviationPattern = new RegExp(`\\(${q}\\)`, "i");
+          const abbreviationPattern = new RegExp(`\\(${q}\\)`, "i");
 
-    if (abbreviationPattern.test(item.en)) return 1;
-    if (en === q) return 2;
-    if (en.startsWith(q)) return 3;
-    if (kr.startsWith(q)) return 4;
-    if (en.includes(q)) return 5;
-    if (kr.includes(q)) return 6;
-    if (comment.includes(q)) return 7;
+          const acronym = item.en
+            .split(" ")
+            .map((word) => word[0])
+            .join("")
+            .toLowerCase();
 
-    return 8;
-  };
+          if (abbreviationPattern.test(item.en)) return 1;
+          if (acronym === q) return 2;
+          if (en === q) return 3;
+          if (en.startsWith(q)) return 4;
+          if (kr.startsWith(q)) return 5;
+          if (en.includes(q)) return 6;
+          if (kr.includes(q)) return 7;
+          if (comment.includes(q)) return 8;
 
-  const rankA = getRank(a);
-  const rankB = getRank(b);
+          return 9;
+        };
 
-  if (rankA !== rankB) return rankA - rankB;
+        const rankA = getRank(a);
+        const rankB = getRank(b);
 
-  return a.en.localeCompare(b.en);
-})
+        if (rankA !== rankB) return rankA - rankB;
+
+        return a.en.localeCompare(b.en);
+      });
 
     setFilteredResults(ranked.slice(0, 20));
     setSelectedIndex(0);
   }, [query, terms]);
 
-  const handleFileUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-
-    if (!file) return;
+  const processFile = async (file: File) => {
+    setFileName(file.name);
 
     const data = await file.arrayBuffer();
 
@@ -102,9 +109,32 @@ function App() {
 
     setTerms(parsedTerms);
     setFilteredResults(parsedTerms.slice(0, 20));
-
     setQuery("");
     setSelectedIndex(0);
+
+    inputRef.current?.focus();
+  };
+
+  const handleFileUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0];
+
+  if (!file) return;
+
+  await processFile(file);
+
+  e.target.value = "";
+};
+
+  const clearGlossary = () => {
+    localStorage.removeItem("terms");
+
+    setTerms([]);
+    setFilteredResults([]);
+    setQuery("");
+    setSelectedIndex(0);
+    setFileName("");
 
     inputRef.current?.focus();
   };
@@ -156,30 +186,121 @@ function App() {
 
   return (
     <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragging(true);
+      }}
+      onDragLeave={() => {
+        setIsDragging(false);
+      }}
+      onDrop={async (e) => {
+        e.preventDefault();
+
+        setIsDragging(false);
+
+        const file = e.dataTransfer.files?.[0];
+
+        if (!file) return;
+
+        await processFile(file);
+      }}
       style={{
         minHeight: "100vh",
-        background: "#0a0a0a",
+        background: isDragging ? "#111827" : "#0a0a0a",
         color: "white",
         padding: "40px",
         fontFamily: "sans-serif",
+        border: isDragging
+          ? "2px dashed #3b82f6"
+          : "2px solid transparent",
+        transition: "background 0.15s ease, border 0.15s ease",
       }}
     >
       <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-        <h1
+        <div
           style={{
-            fontSize: "22px",
-            fontWeight: "bold",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "16px",
             marginBottom: "16px",
           }}
         >
-          Terminology Search
-        </h1>
+          <h1
+            style={{
+              fontSize: "22px",
+              fontWeight: "bold",
+              margin: 0,
+            }}
+          >
+            Terminology Search
+          </h1>
+
+          {terms.length > 0 && (
+            <button
+              onClick={clearGlossary}
+              style={{
+                padding: "8px 12px",
+                background: "#171717",
+                border: "1px solid #333",
+                borderRadius: "8px",
+                color: "#aaa",
+                cursor: "pointer",
+                fontSize: "13px",
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            display: "inline-block",
+            padding: "10px 16px",
+            background: "#171717",
+            border: "1px solid #333",
+            borderRadius: "10px",
+            cursor: "pointer",
+            fontSize: "14px",
+            color: "white",
+          }}
+        >
+          Upload Glossary
+        </button>
 
         <input
+          ref={fileInputRef}
           type="file"
           accept=".xlsx,.csv"
           onChange={handleFileUpload}
+          style={{ display: "none" }}
         />
+
+        <div
+          style={{
+            marginTop: "8px",
+            marginBottom: "12px",
+            color: isDragging ? "#60a5fa" : "#777",
+            fontSize: "13px",
+          }}
+        >
+          Drag & drop or upload an Excel/CSV glossary.
+        </div>
+
+        <div
+          style={{
+            marginTop: "12px",
+            color: fileName ? "#60a5fa" : "#777",
+            fontSize: "14px",
+          }}
+        >
+          {fileName
+            ? `Glossary loaded ✓ (${terms.length} terms)`
+            : "No glossary loaded"}
+        </div>
 
         <input
           ref={inputRef}
@@ -190,7 +311,7 @@ function App() {
           onChange={(e) => setQuery(e.target.value)}
           style={{
             width: "100%",
-            marginTop: "20px",
+            marginTop: "12px",
             padding: "14px",
             fontSize: "16px",
             borderRadius: "12px",
@@ -200,10 +321,6 @@ function App() {
             outline: "none",
           }}
         />
-
-        <div style={{ marginTop: "16px", color: "#aaa" }}>
-          Loaded terms: {terms.length}
-        </div>
 
         <div style={{ marginTop: "24px" }}>
           {filteredResults.map((item, index) => {

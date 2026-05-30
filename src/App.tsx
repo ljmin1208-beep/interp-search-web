@@ -367,8 +367,23 @@ function App() {
           );
         })}
       </div>
+          </div>
+
+      <img
+        src="/favicon.png"
+        alt="logo"
+        style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          width: "40px",
+          height: "40px",
+          opacity: 0.22,
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      />
     </div>
-  </div>
 );
 }
 

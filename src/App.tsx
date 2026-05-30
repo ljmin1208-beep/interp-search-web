@@ -287,14 +287,14 @@ function App() {
             fontSize: "13px",
           }}
         >
-          Drag & drop or upload an Excel/CSV glossary.
+          Upload or drag & drop an Excel/CSV glossary.
         </div>
 
         <div
           style={{
             marginTop: "12px",
             color: fileName ? "#60a5fa" : "#777",
-            fontSize: "14px",
+            fontSize: "13px",
           }}
         >
           {fileName
